@@ -1,5 +1,8 @@
 #pragma once
-
+#include <SDKDDKVer.h>
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT=0x0601;
+#endif
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
