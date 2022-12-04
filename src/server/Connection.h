@@ -1,4 +1,5 @@
 #pragma once
+
 #include <memory>
 #include "ShmServerInclude.h"
 #include "../core/Log.h"
