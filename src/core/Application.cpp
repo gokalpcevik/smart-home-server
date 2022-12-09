@@ -24,7 +24,7 @@ namespace shm::Core
         }
     	catch(std::exception const& e)
         {
-            smart_error("Error:{}", e.what());
+            shm_error("Error:{}", e.what());
             return EXIT_FAILURE;
         }
 
@@ -38,6 +38,7 @@ namespace shm::Core
             {
                 if (!ec)
                 {
+                    shm_trace("Responded to request w/ remote endpoint IPv4 Address:{}", socket.remote_endpoint().address().to_string());
                     auto const connection = std::make_shared<server::Connection>(std::move(socket));
                     connection->Start();
                 }

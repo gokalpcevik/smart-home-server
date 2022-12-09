@@ -21,9 +21,9 @@ namespace shm
     }
 }
 
-#define smart_trace(...) ::shm::Core::Log::GetLogger()->trace(__VA_ARGS__)
-#define smart_debug(...) ::shm::Core::Log::GetLogger()->debug(__VA_ARGS__)
-#define smart_info(...) ::shm::Core::Log::GetLogger()->info(__VA_ARGS__)
-#define smart_warn(...) ::shm::Core::Log::GetLogger()->warn(__VA_ARGS__)
-#define smart_error(...) ::shm::Core::Log::GetLogger()->error(__VA_ARGS__)
-#define smart_critical(...) ::shm::Core::Log::GetLogger()->critical(__VA_ARGS__)
+#define shm_trace(...) ::shm::Core::Log::GetLogger()->trace(__VA_ARGS__)
+#define shm_debug(...) ::shm::Core::Log::GetLogger()->debug(__VA_ARGS__)
+#define shm_info(...) ::shm::Core::Log::GetLogger()->info(__VA_ARGS__)
+#define shm_warn(...) ::shm::Core::Log::GetLogger()->warn(__VA_ARGS__)
+#define shm_error(...) ::shm::Core::Log::GetLogger()->error(__VA_ARGS__)
+#define shm_critical(...) ::shm::Core::Log::GetLogger()->critical(__VA_ARGS__)
