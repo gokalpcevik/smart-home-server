@@ -13,18 +13,18 @@ namespace shm::Core
     {
         Log::Init();
 
-        boost::asio::ip::address const address = net::ip::make_address(shm::g_IpAddress);
+        boost::asio::ip::address const address = net::ip::make_address(shm::config::g_IpAddress);
 
     	try
         {
-            tcp::acceptor acceptor{ m_IOContext, {address, shm::g_Port} };
+            tcp::acceptor acceptor{ m_IOContext, {address, shm::config::g_Port} };
             tcp::socket socket{ m_IOContext };
             this->Serve(acceptor, socket);
             m_IOContext.run();
         }
     	catch(std::exception const& e)
         {
-            smart_error("Error:{}", e.what());
+            shm_error("Error:{}", e.what());
             return EXIT_FAILURE;
         }
 
@@ -38,8 +38,9 @@ namespace shm::Core
             {
                 if (!ec)
                 {
+                    shm_trace("Responded to request w/ remote endpoint IPv4 Address:{}", socket.remote_endpoint().address().to_string());
                     auto const connection = std::make_shared<server::Connection>(std::move(socket));
-                    connection->Start();
+                	connection->Start();
                 }
                 this->Serve(acceptor, socket);
             });

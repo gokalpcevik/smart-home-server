@@ -29,7 +29,7 @@ namespace shm::server
 				if (!ErrorCode)
 					self->ProcessRequest();
 				else
-					smart_error("Error while asyncronously reading HTTP message. \r\n Error:{0}", ErrorCode.what());
+					shm_error("Error while asyncronously reading HTTP message. \r\n Error:{0}", ErrorCode.what());
 			});
 	}
 
