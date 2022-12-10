@@ -9,40 +9,29 @@ namespace shm::Core
         return instance;
     }
 
-    auto Application::Start() -> int32_t
+    auto Application::Start() const -> int32_t
     {
         Log::Init();
 
-        boost::asio::ip::address const address = net::ip::make_address(shm::config::g_IpAddress);
+        boost::asio::ip::address const address = net::ip::make_address(config::g_IpAddress);
 
-    	try
-        {
-            tcp::acceptor acceptor{ m_IOContext, {address, shm::config::g_Port} };
-            tcp::socket socket{ m_IOContext };
-            this->Serve(acceptor, socket);
-            m_IOContext.run();
-        }
-    	catch(std::exception const& e)
-        {
-            shm_error("Error:{}", e.what());
-            return EXIT_FAILURE;
-        }
+        net::io_context ioc{ config::g_Threads };
+
+        auto const listener = std::make_shared<server::Listener>(ioc, tcp::endpoint{ address, config::g_Port });
+
+    	listener->Start();
+
+        // Run the I/O service on the requested number of threads
+        std::vector<std::thread> v;
+        v.reserve(config::g_Threads - 1);
+        for (auto i = config::g_Threads - 1; i > 0; --i)
+            v.emplace_back(
+                [&ioc]
+                {
+                    ioc.run();
+                });
+        ioc.run();
 
         return EXIT_SUCCESS;
-    }
-
-    void Application::Serve(tcp::acceptor& acceptor, tcp::socket& socket)
-    {
-        acceptor.async_accept(socket,
-            [&](beast::error_code ec)
-            {
-                if (!ec)
-                {
-                    shm_trace("Responded to request w/ remote endpoint IPv4 Address:{}", socket.remote_endpoint().address().to_string());
-                    auto const connection = std::make_shared<server::Connection>(std::move(socket));
-                	connection->Start();
-                }
-                this->Serve(acceptor, socket);
-            });
     }
 }
