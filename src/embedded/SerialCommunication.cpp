@@ -1,11 +1,11 @@
-#include "SerialComm.h"
+#include "SerialCommunication.h"
 
 namespace shm::embedded
 {
-	SerialComm::SerialComm(std::string_view PortName)
-		: m_PortName(PortName)
+	SerialCommunication::SerialCommunication(std::string_view portName,BaudRate baudRate)
+		: m_PortName(portName)
 	{
-		m_HComm = ::CreateFileA(PortName.data(),
+		m_HComm = ::CreateFileA(portName.data(),
 			GENERIC_READ | GENERIC_WRITE,
 			0,
 			nullptr,
@@ -15,7 +15,7 @@ namespace shm::embedded
 
 		if(m_HComm == INVALID_HANDLE_VALUE)
 		{
-			shm_error("Port with name:{0} cannot be opened.",PortName);
+			shm_error("Port with name:{0} cannot be opened.",portName);
 			return;
 		}
 
@@ -30,7 +30,7 @@ namespace shm::embedded
 			return;
 		}
 
-		m_DCBSerialParams.BaudRate = CBR_9600;
+		m_DCBSerialParams.BaudRate = static_cast<DWORD>(baudRate);
 		m_DCBSerialParams.ByteSize = 8U;
 		m_DCBSerialParams.StopBits = 1U;
 		m_DCBSerialParams.Parity = NOPARITY;
@@ -45,10 +45,10 @@ namespace shm::embedded
 		}
 
 		COMMTIMEOUTS timeouts{};
-		timeouts.ReadIntervalTimeout = 100;
-		timeouts.ReadTotalTimeoutConstant = 100;
+		timeouts.ReadIntervalTimeout = 50;
+		timeouts.ReadTotalTimeoutConstant = 50;
 		timeouts.ReadTotalTimeoutMultiplier = 10;
-		timeouts.WriteTotalTimeoutConstant = 100;
+		timeouts.WriteTotalTimeoutConstant = 50;
 		timeouts.WriteTotalTimeoutMultiplier = 10;
 		if (!::SetCommTimeouts(m_HComm, &timeouts))
 		{
@@ -57,15 +57,51 @@ namespace shm::embedded
 		}
 	}
 
-	SerialComm::~SerialComm()
+	SerialCommunication::~SerialCommunication()
 	{
 		if(m_HComm != INVALID_HANDLE_VALUE)
 			::CloseHandle(m_HComm);
 	}
 
-	bool SerialComm::WriteString(std::string const& message) const
+	bool SerialCommunication::WriteString(std::string const& message) const
 	{
 		DWORD BytesWritten;
 		return static_cast<bool>(::WriteFile(m_HComm, message.data(), message.size(), &BytesWritten, nullptr));
+	}
+
+	bool SerialCommunication::ReadBlocking(std::vector<char>& receivedData) const
+	{
+		BOOL status = ::SetCommMask(m_HComm, EV_RXCHAR);
+		if(!status)
+		{
+			shm_error("Error while setting CommMask.");
+			return false;
+		}
+
+		DWORD dwEventMask;
+		status = ::WaitCommEvent(m_HComm, &dwEventMask, nullptr);
+
+		if(!status)
+		{
+			shm_error("Error while waiting for CommEvent.");
+			return false;
+		}
+
+		DWORD numBytesRead;
+		char readData;
+
+		do
+		{
+			status = ReadFile(m_HComm, &readData, sizeof(readData), &numBytesRead, nullptr);
+			if(!status)
+			{
+				shm_error("Error while trying to read the serial file.");
+				return false;
+			} 
+			receivedData.push_back(readData);
+
+		} while (numBytesRead > 0);
+
+		return true;
 	}
 }
