@@ -56,7 +56,6 @@ namespace shm::server
 
 	void Session::OnWrite(bool close, beast::error_code ec, std::size_t bytesTransferred)
 	{
-		shm_trace("Total of {0} bytes of data were written.", bytesTransferred);
 		boost::ignore_unused(bytesTransferred);
 
 		if (ec)

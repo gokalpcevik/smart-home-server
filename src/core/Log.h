@@ -1,6 +1,9 @@
 #pragma once
 #define SPDLOG_WCHAR_TO_UTF8_SUPPORT
+
 #include <spdlog/spdlog.h>
+#include <spdlog/async.h>
+#include <spdlog/async_logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
@@ -11,12 +14,12 @@ namespace shm
         class Log
         {
         private:
-            static std::shared_ptr<spdlog::logger> s_Logger;
+            static std::shared_ptr<spdlog::async_logger> s_Logger;
 
         public:
             Log() = default;
             static void Init();
-            static auto GetLogger() -> std::shared_ptr<spdlog::logger> & { return s_Logger; }
+            static auto GetLogger() -> std::shared_ptr<spdlog::async_logger> & { return s_Logger; }
         };
     }
 }
