@@ -13,6 +13,8 @@ namespace shm::Core
     {
         Log::Init();
 
+        shm_info("Server is now listening on port {0}, running on {1} threads.", config::g_Port, config::g_Threads);
+
         boost::asio::ip::address const address = net::ip::make_address(config::g_IpAddress);
 
         net::io_context ioc{ config::g_Threads };

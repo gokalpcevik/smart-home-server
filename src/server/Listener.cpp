@@ -54,7 +54,6 @@ namespace shm::server
 			SHM_SV_ERR(ec);
 		else
 		{
-			shm_info("Connection was accepted with the remote endpoint addres {0}.",socket.remote_endpoint().address().to_string());
 			auto const& session = std::make_shared<Session>(std::move(socket));
 			session->Start();
 		}
