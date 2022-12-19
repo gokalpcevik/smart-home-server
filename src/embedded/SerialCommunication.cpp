@@ -69,6 +69,12 @@ namespace shm::embedded
 		return static_cast<bool>(::WriteFile(m_HComm, message.data(), message.size(), &BytesWritten, nullptr));
 	}
 
+	bool SerialCommunication::Write(void const* data, std::size_t size) const
+	{
+		DWORD BytesWritten;
+		return static_cast<bool>(::WriteFile(m_HComm, data, (DWORD)size, &BytesWritten, nullptr));
+	}
+
 	bool SerialCommunication::ReadBlocking(std::vector<char>& receivedData) const
 	{
 		BOOL status = ::SetCommMask(m_HComm, EV_RXCHAR);

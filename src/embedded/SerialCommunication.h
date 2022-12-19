@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string_view>
-
+#include <any>
 #include "../core/MinimalWindows.h"
 #include "../core/Log.h"
 
@@ -24,6 +24,7 @@ namespace shm::embedded
 		~SerialCommunication();
 
 		bool WriteString(std::string const& message) const;
+		bool Write(void const* data, std::size_t size) const;
 		bool ReadBlocking(std::vector<char>& receivedData) const;
 
 	private:

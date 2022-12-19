@@ -4,5 +4,5 @@
 	Session.cpp
 	RequestHandler.h
 	ServerConfiguration.h
-	ShmServerInclude.h
+	CommonServerIncludes.h
 	ErrorCode.h)

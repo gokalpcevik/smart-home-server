@@ -8,6 +8,7 @@ project ("smart-home-server")
 
 find_package(spdlog CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(simdjson CONFIG REQUIRED)
 
 add_executable(smart-home-server "src/Main.cpp")
 
@@ -30,6 +31,7 @@ include_directories(smart-home-server PRIVATE
 target_link_libraries(smart-home-server 
     PRIVATE 
     spdlog::spdlog
+    simdjson::simdjson
     )
 
 target_link_directories(smart-home-server PRIVATE

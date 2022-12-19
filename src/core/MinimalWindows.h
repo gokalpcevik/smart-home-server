@@ -33,6 +33,8 @@
 #define NOPROXYSTUB
 #define NOIMAGE
 #define NOTAPE
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #include <Windows.h>

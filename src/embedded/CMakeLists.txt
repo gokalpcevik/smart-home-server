@@ -1,2 +1,3 @@
 ﻿target_sources(smart-home-server PRIVATE 
-	SerialCommunication.cpp)
+	SerialCommunication.cpp
+	CommandBuilder.cpp)
