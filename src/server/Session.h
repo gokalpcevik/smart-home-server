@@ -1,12 +1,11 @@
 #pragma once
 #include "RequestHandler.h"
-#include "ShmServerInclude.h"
+#include "CommonServerIncludes.h"
 #include "../core/Log.h"
 #include "ErrorCode.h"
 
 namespace shm::server
 {
-	
 	class Session : public std::enable_shared_from_this<Session>
 	{
 	public:
@@ -28,23 +27,27 @@ namespace shm::server
 		{
 			Session& r_self;
 
-			explicit SendLambda(Session& self) : r_self(self) {}
+			explicit SendLambda(Session& self) : r_self(self)
+			{
+			}
 
-			template<bool isRequest, class Body, class Fields>
+			template <bool isRequest, class Body, class Fields>
 			void operator()(http::message<isRequest, Body, Fields>&& msg) const
 			{
 				auto sp = std::make_shared<
 					http::message<isRequest, Body, Fields>>(std::move(msg));
 				r_self.m_Response = sp;
+
 				http::async_write(
 					r_self.m_TCPStream,
 					*sp,
-					beast::bind_front_handler(
-						&Session::OnWrite,
-						r_self.shared_from_this(),
-						sp->need_eof()));
+					beast::bind_front_handler(&Session::OnWrite,r_self.shared_from_this(), sp->need_eof()));
 			}
 		};
+
+		std::chrono::time_point<std::chrono::steady_clock> m_ReadPoint;
+		std::chrono::time_point<std::chrono::steady_clock> m_WritePoint;
+
 		beast::tcp_stream m_TCPStream;
 		beast::flat_buffer m_Buffer;
 		http::request<http::string_body> m_Request;

@@ -11,6 +11,10 @@ namespace shm::server
 
 	void Session::Start()
 	{
+
+		auto const& address = m_TCPStream.socket().remote_endpoint().address().to_string();
+		shm_trace("Starting session with the remote TCP endpoint address of '{0}'", address);
+
 		this->StartReading();
 	}
 
@@ -20,11 +24,14 @@ namespace shm::server
 
 		m_TCPStream.expires_after(std::chrono::seconds(60LL));
 
+
 		http::async_read(m_TCPStream, m_Buffer, m_Request,
 			beast::bind_front_handler(
 				&Session::OnRead,
 				shared_from_this())
 			);
+
+		m_ReadPoint = std::chrono::steady_clock::now();
 	}
 
 	void Session::Close()
@@ -32,7 +39,11 @@ namespace shm::server
 		// Send a TCP shutdown
 		beast::error_code ec;
 		m_TCPStream.socket().shutdown(tcp::socket::shutdown_send, ec);
-		// At this point the connection is closed gracefully
+
+		if(ec)
+			SHM_SV_ERR(ec);
+
+		
 	}
 
 	void Session::OnRead(beast::error_code ec, std::size_t bytesTransferred)
@@ -51,7 +62,9 @@ namespace shm::server
 			SHM_SV_ERR(ec);
 			return;
 		}
-		shm::server::HandleRequest(std::move(m_Request), m_Lambda);
+
+
+		server::HandleRequest(std::move(m_Request), m_Lambda);
 	}
 
 	void Session::OnWrite(bool close, beast::error_code ec, std::size_t bytesTransferred)
@@ -60,6 +73,13 @@ namespace shm::server
 
 		if (ec)
 			return SHM_SV_ERR(ec);
+
+		m_WritePoint = std::chrono::steady_clock::now();
+
+		auto const elapsed = m_WritePoint - m_ReadPoint;
+
+		shm_info("{0} microseconds has elapsed between reading the request and writing the response.",
+			std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
 
 		if (close)
 		{

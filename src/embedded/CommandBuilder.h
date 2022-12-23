@@ -4,14 +4,14 @@
 
 namespace shm::embedded
 {
-	enum class Room : uint8_t
+	enum class ROOM : uint64_t
 	{
 		Invalid=0x0,
 		LivingRoom=0x1,
 		Bedroom=0x2
 	};
 
-	enum class Command : uint8_t
+	enum class COMMAND : uint64_t
 	{
 		Brightness=0x0,
 		Power=0x1,
@@ -22,7 +22,7 @@ namespace shm::embedded
 		ColorSelection=0x6
 	};
 
-	enum class Color
+	enum class COLOR
 	{
 		Red=0x0,
 		Green=0x1,
@@ -34,11 +34,13 @@ namespace shm::embedded
 	public:
 		CommandBuilder() = default;
 
-		static uint64_t BuildInvalidCmd() { return 0x0; }
-		static uint64_t BuildDoorCmd(bool on);
-		static uint64_t BuildWindowCmd(bool on);
-		static uint64_t BuildPowerCmd(Room room, bool on);
-		static uint64_t BuildBrightnessCmd(Room room, float brightness);
-		static uint64_t BuildSelectColorCmd(Room room, Color color);
+		static uint64_t BuildInvalid() { return 0x0; }
+		static uint64_t BuildDoor(bool on);
+		static uint64_t BuildWindow(bool on);
+		static uint64_t BuildPower(ROOM room, bool on);
+		static uint64_t BuildBrightness(ROOM room, uint32_t brightness);
+		static uint64_t BuildSelectColor(ROOM room, COLOR color);
+		static uint64_t BuildSmartLight(bool on);
+		static uint64_t BuildSunlight(bool on);
 	};
 }

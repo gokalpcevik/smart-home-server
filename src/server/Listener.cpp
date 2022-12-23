@@ -2,10 +2,11 @@
 
 namespace shm::server
 {
-	Listener::Listener(net::io_context& ioc, tcp::endpoint endpoint)
+	Listener::Listener(net::io_context& ioc, tcp::endpoint const& endpoint)
 		: m_IOContext(ioc), m_Acceptor(net::make_strand(ioc)) 
 	{
 		beast::error_code ec;
+
 
 		m_Acceptor.open(endpoint.protocol(), ec);
 		if(ec)
@@ -21,6 +22,15 @@ namespace shm::server
 			return;
 		}
 
+		m_Acceptor.set_option(tcp::no_delay(true),ec);
+		if (ec)
+		{
+			SHM_SV_ERR(ec);
+			return;
+		}
+
+		// Bind the endpoint. If the endpoint specifies an IPv4 address of 0.0.0.0
+		// then we would listen incoming connections from any address, which is currently the case.
 		m_Acceptor.bind(endpoint, ec);
 		if(ec)
 		{

@@ -1,13 +1,29 @@
 #pragma once
+#include <fstream>
 #include "CommonServerIncludes.h"
+#include "shm_yaml.h"
 #include "../core/Log.h"
 #include "../embedded/SerialCommunication.h"
 #include "../embedded/CommandBuilder.h"
 #include <simdjson.h>
+#include <yaml-cpp/yaml.h>
+#include <ostream>
 #include "ErrorCode.h"
 
 namespace shm::server
 {
+    template<class Body, class Allocator>
+    http::response<http::string_body> Ok(http::request<Body, http::basic_fields<Allocator>> const& request, std::string_view why)
+    {
+        http::response<http::string_body> res{ http::status::bad_request, request.version() };
+        res.set(http::field::server, "smart-home-beast");
+        res.set(http::field::content_type, "text/plain");
+        res.keep_alive(request.keep_alive());
+        res.body() = std::string(why);
+        res.prepare_payload();
+        return std::move(res);
+    }
+
     template<class Body, class Allocator>
     http::response<http::string_body> BadRequest(http::request<Body, http::basic_fields<Allocator>> const& request, std::string_view why)
     {
@@ -47,7 +63,10 @@ namespace shm::server
 
 	template<class Body, class Allocator, class Send>
 	void HandleRequest(http::request<Body, http::basic_fields<Allocator>>&& request,Send&& send)
-	{
+	{   
+        embedded::CommandBuilder cmdBuilder;
+        embedded::SerialCommunication comm("\\\\.\\COM8", embedded::BaudRate::BR115200);
+
         switch(request.method())
         {
         default:
@@ -78,16 +97,11 @@ namespace shm::server
                     std::string json = request.body();
                     simdjson::dom::parser parser;
                     auto const requestData = parser.parse(json);
-
                     
-
                     if(requestData.error() != simdjson::SUCCESS)
                     {
                         return send(BadRequest(request, "Invalid JSON data."));
                     }
-
-                    embedded::CommandBuilder cmdBuilder;
-	                embedded::SerialCommunication comm("\\\\.\\COM3", embedded::BaudRate::BR115200);
 
 	                auto room = requestData["room"].get_string();
 	                auto command = requestData["func"].get_string();
@@ -101,11 +115,11 @@ namespace shm::server
                     }
 
 
-                    embedded::Room roomEnum = embedded::Room::Invalid;
+                    embedded::ROOM roomEnum = embedded::ROOM::Invalid;
 
-                    if (room.value() == "livingroom") roomEnum = embedded::Room::LivingRoom;
-                    else if (room.value() == "bedroom") roomEnum = embedded::Room::Bedroom;
-                    else return send(BadRequest(request, "{\"message\":\"Room not found\"}"));
+                    if (room.value() == "livingroom") roomEnum = embedded::ROOM::LivingRoom;
+                    else if (room.value() == "bedroom") roomEnum = embedded::ROOM::Bedroom;
+                    else return send(BadRequest(request, "{\"message\":\"ROOM not found\"}"));
 
                     if(command.value() == "power")
                     {
@@ -116,26 +130,201 @@ namespace shm::server
 
 
                     	auto power = targetValue.get_bool().value();
-                        uint64_t boardCmd = cmdBuilder.BuildPowerCmd(roomEnum, power);
+                        uint64_t boardCmd = cmdBuilder.BuildPower(roomEnum, power);
                     	bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"success\":{0} }}", success);
 
-                    	http::response<http::string_body> res{ http::status::ok, request.version() };
-                        res.set(http::field::server, "smart-home-beast");
-                        res.set(http::field::content_type, "text/plain");
-                        res.keep_alive(request.keep_alive());
-                        res.body() = request.body();
-                    	res.prepare_payload();
+                        return send(Ok(request, responseStr));
 
-                        return send(std::move(res));
+                    }
+                    else if (command.value() == "window")
+                    {
+                        if (targetValue.get_bool().error() != simdjson::SUCCESS)
+                            return send(
+                                BadRequest(request,
+                                    fmt::format("'targetValue' expect a value of type 'bool' but received the value '{0}'", targetValue.value())));
 
+                        auto doorOn = targetValue.get_bool().value();
+                        uint64_t boardCmd = cmdBuilder.BuildWindow(doorOn);
+                        bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+                        
+                        return send(Ok(request,responseStr));
+                    }
+                    else if(command.value() == "smartlight")
+                    {
+                        if (targetValue.get_bool().error() != simdjson::SUCCESS)
+                            return send(
+                                BadRequest(request,
+                                    fmt::format("'targetValue' expect a value of type 'bool' but received the value '{0}'", targetValue.value())));
+
+
+                        auto smartlightOn = targetValue.get_bool().value();
+                        uint64_t boardCmd = cmdBuilder.BuildSmartLight(smartlightOn);
+                        bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+                    	return send(Ok(request,responseStr));
+                    }
+                    else if(command.value() == "sunlight")
+                    {
+                        if (targetValue.get_bool().error() != simdjson::SUCCESS)
+                            return send(
+                                BadRequest(request,
+                                    fmt::format("'targetValue' expect a value of type 'bool' but received the value '{0}'", targetValue.value())));
+
+
+                        auto sunlightOn = targetValue.get_bool().value();
+                        uint64_t boardCmd = cmdBuilder.BuildSunlight(sunlightOn);
+                        bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+                        return send(Ok(request,responseStr));
+                    }
+                    else if(command.value() == "brightness")
+                    {
+                    if (targetValue.get_int64().error() != simdjson::SUCCESS)
+                        return send(
+                            BadRequest(request,
+                                fmt::format("'targetValue' expect a value of type 'int/uint' but received the value '{0}'", targetValue.value())));
+
+
+                        auto brightness = targetValue.get_int64().value();
+                        uint64_t boardCmd = cmdBuilder.BuildBrightness(roomEnum,brightness);
+                        bool success = comm.Write(&boardCmd, 8);
+
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+	                    return send(Ok(request,responseStr));
                     }
                     else
                     {
-                        send(BadRequest(request, "Invalid home function."));
+	                   return send(BadRequest(request, "{ \"response\":false }"));
                     }
-                    // Send the response back to app
-                    return send(BadRequest(request,"Unknown error."));
 				}
+
+                else if (request.target() == "/door")
+                {
+					/*
+					 *  This endpoint expects a request body like below:
+					 *  {
+					 *      "password":"....",
+					 *      "targetValue":true,false // Open or close the door
+					 *  }
+					 *
+					 *
+					 *  Response body is like below:
+					 *  If the password is correct:
+					 *  {
+					 *      "response":true
+					 *  }
+					 *
+					 *  If the password is not correct:
+					 *  {
+					 *      "response":"Invalid password."
+					 *  }
+					 */
+
+					std::string json = request.body();
+					simdjson::dom::parser parser;
+					auto const requestData = parser.parse(json);
+
+                    if (requestData.error() != simdjson::SUCCESS)
+                    {
+                        return send(BadRequest(request, "{ \"response\":\"Invalid JSON data.\" }"));
+                    }
+
+                    auto file = YAML::LoadFile("pass.yml");
+                    YAML::Node root = file["Server"];
+                    YAML::Node passwordNode = root["Password"];
+
+                    auto password = passwordNode.as<std::string>();
+
+                    if (password == requestData["password"].get_string().value())
+                    {
+                        uint64_t boardCmd = cmdBuilder.BuildDoor(requestData["targetValue"].get_bool().value());
+                        bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+                        return send(Ok(request,responseStr));
+                    }
+                    else
+                    {
+                        return send(BadRequest(request, "{ \"response\":\"Invalid password.\" }"));
+
+                    }
+                }
+
+                else if(request.target() == "/password")
+                {
+	                /*
+	                 *  This endpoint expects a request body like below:
+	                 *  {
+	                 *      "oldPassword": "....",
+	                 *      "newPassword": "..."
+	                 *  }
+	                 *
+	                 *
+	                 *  Response body is like below:
+	                 *  If the old password is correct:
+	                 *  {
+	                 *      "response":true
+	                 *  }
+	                 *
+	                 *  If the password is not correct:
+	                 *  {
+	                 *      "response":"Invalid password."
+	                 *  }
+	                 */
+
+
+	                std::string json = request.body();
+	                simdjson::dom::parser parser;
+	                auto const requestData = parser.parse(json);
+
+	                if (requestData.error() != simdjson::SUCCESS)
+	                {
+	                    return send(BadRequest(request, "{ \"response\":\"Invalid JSON data.\" }"));
+	                }
+
+                    auto oldPassword = requestData["oldPassword"].get_string();
+	                auto newPassword = requestData["newPassword"].get_string();
+
+	                if (oldPassword.error() != simdjson::SUCCESS ||
+	                    newPassword.error() != simdjson::SUCCESS)
+	                {
+	                    return send(BadRequest(request, "{ \"response\":\"Invalid JSON data or type.\" }"));
+	                }
+
+                    auto file = YAML::LoadFile("pass.yml");
+                    YAML::Node root = file["Server"];
+                    YAML::Node passwordNode = root["Password"];
+
+                    auto password = passwordNode.as<std::string>();
+
+                    if(password != oldPassword.value())
+                    {
+                        return send(BadRequest(request, "{ \"response\":\"Invalid old password.\" }"));
+                    }
+
+                    YAML::Emitter emitter;
+                    emitter << YAML::BeginMap;
+                        emitter << YAML::Key << "Server";
+                        emitter << YAML::Value;
+                        emitter << YAML::BeginMap;
+                            emitter << YAML::Key << "Password";
+                            emitter << YAML::Value << std::string(newPassword.value());
+                            emitter << YAML::EndMap;
+                        emitter << YAML::EndMap;
+
+                    std::ofstream fon("pass.yml");
+                    fon.write(emitter.c_str(),emitter.size());
+                    fon.close();
+
+                    auto responseStr = fmt::format("{{ \"response\":\"Password changed successfully.\" }}");
+                    return send(Ok(request,responseStr));
+                }
 
 	            if (request.target() == "/time")
 	            {

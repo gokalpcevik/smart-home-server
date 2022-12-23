@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "Log.h"
-#include "../server/ShmServerInclude.h"
+#include "../server/CommonServerIncludes.h"
 #include "../server/Connection.h"
 #include "../server/ServerConfiguration.h"
 #include "../server/Listener.h"

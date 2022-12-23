@@ -5,4 +5,5 @@
 	RequestHandler.h
 	ServerConfiguration.h
 	CommonServerIncludes.h
+	shm_yaml.h
 	ErrorCode.h)

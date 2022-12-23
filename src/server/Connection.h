@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "ShmServerInclude.h"
+#include "CommonServerIncludes.h"
 #include "../core/Log.h"
 
 namespace shm::server
