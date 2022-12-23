@@ -15,7 +15,7 @@ namespace shm::server
     template<class Body, class Allocator>
     http::response<http::string_body> Ok(http::request<Body, http::basic_fields<Allocator>> const& request, std::string_view why)
     {
-        http::response<http::string_body> res{ http::status::bad_request, request.version() };
+        http::response<http::string_body> res{ http::status::ok, request.version() };
         res.set(http::field::server, "smart-home-beast");
         res.set(http::field::content_type, "text/plain");
         res.keep_alive(request.keep_alive());
@@ -93,6 +93,28 @@ namespace shm::server
 	        {
 				if(request.target() == "/room")
 				{
+                    /*
+                     *  This endpoint expects a request body like below:
+                     *  {
+                     *      "room": "livingroom" or "bedroom",
+                     *      "func": "brightness" or "power" or "window" or "smartlight" or "sunlight" or "changeColor"
+                     *      "targetValue": int64 0-100 or true/false or true/false or true/false or true/false or "red"/"turquoise"/"green"
+                     *  }
+                     *
+                     *
+                     *  Response body is like below:
+                     *  If the function is executed correctly on Arduino:
+                     *  {
+                     *      "response":true
+                     *  }
+                     *
+                     *  If the function is not executed correctly on Arduino:
+                     *  {
+                     *      "response":false
+                     *  }
+                     */
+
+
                     // Embedded/board communication goes here
                     std::string json = request.body();
                     simdjson::dom::parser parser;
@@ -119,7 +141,7 @@ namespace shm::server
 
                     if (room.value() == "livingroom") roomEnum = embedded::ROOM::LivingRoom;
                     else if (room.value() == "bedroom") roomEnum = embedded::ROOM::Bedroom;
-                    else return send(BadRequest(request, "{\"message\":\"ROOM not found\"}"));
+                    else return send(BadRequest(request, "{\"message\":\"Room not found\"}"));
 
                     if(command.value() == "power")
                     {
@@ -184,11 +206,13 @@ namespace shm::server
                     }
                     else if(command.value() == "brightness")
                     {
-                    if (targetValue.get_int64().error() != simdjson::SUCCESS)
-                        return send(
-                            BadRequest(request,
-                                fmt::format("'targetValue' expect a value of type 'int/uint' but received the value '{0}'", targetValue.value())));
+	                    if (targetValue.get_int64().error() != simdjson::SUCCESS)
+	                        return send(
+	                            BadRequest(request,
+	                                fmt::format("'targetValue' expect a value of type 'int/uint' but received the value '{0}'", targetValue.value())));
 
+						
+						shm_trace("Brightness value: {}",targetValue.get_int64().value());
 
                         auto brightness = targetValue.get_int64().value();
                         uint64_t boardCmd = cmdBuilder.BuildBrightness(roomEnum,brightness);
@@ -198,9 +222,19 @@ namespace shm::server
 
 	                    return send(Ok(request,responseStr));
                     }
+                    else if(command.value() == "selectColor")
+                    {
+                        if (targetValue.get_string().error() != simdjson::SUCCESS)
+                            return send(
+                                BadRequest(request,
+                                    fmt::format("'targetValue' expect a value of type 'string' but received the value '{0}'", targetValue.value())));
+
+
+                    }
+                    // If the func is invalid
                     else
                     {
-	                   return send(BadRequest(request, "{ \"response\":false }"));
+	                   return send(BadRequest(request, "{ \"response\":\"Invalid function.\" }"));
                     }
 				}
 
@@ -209,7 +243,7 @@ namespace shm::server
 					/*
 					 *  This endpoint expects a request body like below:
 					 *  {
-					 *      "password":"....",
+					 *      "password": int (6 digits) ,
 					 *      "targetValue":true,false // Open or close the door
 					 *  }
 					 *
@@ -217,7 +251,7 @@ namespace shm::server
 					 *  Response body is like below:
 					 *  If the password is correct:
 					 *  {
-					 *      "response":true
+					 *      "response":"Door opened."
 					 *  }
 					 *
 					 *  If the password is not correct:
@@ -239,15 +273,30 @@ namespace shm::server
                     YAML::Node root = file["Server"];
                     YAML::Node passwordNode = root["Password"];
 
-                    auto password = passwordNode.as<std::string>();
+                    auto serverPassword = shm::yaml::AsIf<std::int64_t>(passwordNode);
+                    auto enteredPassword = requestData["password"].get_int64();
 
-                    if (password == requestData["password"].get_string().value())
+                    if(enteredPassword.error() != simdjson::SUCCESS || !serverPassword)
                     {
-                        uint64_t boardCmd = cmdBuilder.BuildDoor(requestData["targetValue"].get_bool().value());
-                        bool success = comm.Write(&boardCmd, 8);
-                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+                        return send(InternalServerError(request, 
+                            "Either the entered password or the password stored on the server is not of the type 'int'."));
+                    }
 
-                        return send(Ok(request,responseStr));
+                    if (serverPassword.value() == enteredPassword.value())
+                    {
+                        auto targetValue = requestData["targetValue"].get_bool();
+
+                        if(targetValue.error() != simdjson::SUCCESS)
+                        {
+                            return send(BadRequest(request, "{ \"response\":\"Invalid JSON data on the key-value pair 'targetValue'.\" }"));
+                        }
+
+                        uint64_t boardCmd = cmdBuilder.BuildDoor(targetValue.value());
+                        bool success = comm.Write(&boardCmd, 8);
+                        auto responseStr = fmt::format("{{ \"response\":\"Door state changed successfully.\" }}");
+                        shm_info("Door state has been changed to '{0}'.",targetValue.value());
+
+                    	return send(Ok(request,responseStr));
                     }
                     else
                     {
@@ -261,15 +310,15 @@ namespace shm::server
 	                /*
 	                 *  This endpoint expects a request body like below:
 	                 *  {
-	                 *      "oldPassword": "....",
-	                 *      "newPassword": "..."
+	                 *      "oldPassword": int (6 digits),
+	                 *      "newPassword": int (6 digits)
 	                 *  }
 	                 *
 	                 *
 	                 *  Response body is like below:
 	                 *  If the old password is correct:
 	                 *  {
-	                 *      "response":true
+	                 *      "response":"Password changed."
 	                 *  }
 	                 *
 	                 *  If the password is not correct:
@@ -288,25 +337,56 @@ namespace shm::server
 	                    return send(BadRequest(request, "{ \"response\":\"Invalid JSON data.\" }"));
 	                }
 
-                    auto oldPassword = requestData["oldPassword"].get_string();
-	                auto newPassword = requestData["newPassword"].get_string();
+                    auto oldPassword = requestData["oldPassword"].get_int64();
+	                auto newPassword = requestData["newPassword"].get_int64();
 
 	                if (oldPassword.error() != simdjson::SUCCESS ||
 	                    newPassword.error() != simdjson::SUCCESS)
 	                {
+                        shm_warn("Invalid password attempt.");
 	                    return send(BadRequest(request, "{ \"response\":\"Invalid JSON data or type.\" }"));
 	                }
 
-                    auto file = YAML::LoadFile("pass.yml");
-                    YAML::Node root = file["Server"];
+                    YAML::Node file;
+	                try
+                    {
+                        file = YAML::LoadFile("pass.yml");
+                    }
+                    catch (YAML::BadFile const& e)
+                    {
+                        shm_error("Either the password file does not exist or it was corrupted.");
+                        shm_info("Creating a new password file.");
+                        YAML::Emitter emitter;
+                        emitter << YAML::BeginMap;
+	                        emitter << YAML::Key << "Server";
+	                        emitter << YAML::Value;
+	                        emitter << YAML::BeginMap;
+		                        emitter << YAML::Key << "Password";
+		                        emitter << YAML::Value << 111111;
+	                        emitter << YAML::EndMap;
+                        emitter << YAML::EndMap;
+
+                        std::ofstream fon("pass.yml");
+                        fon.write(emitter.c_str(), emitter.size());
+                        fon.close();
+                    }
+                    file = YAML::LoadFile("pass.yml");
+	                YAML::Node root = file["Server"];
                     YAML::Node passwordNode = root["Password"];
 
-                    auto password = passwordNode.as<std::string>();
+                    auto password = shm::yaml::AsIf<std::int64_t>(passwordNode);
 
-                    if(password != oldPassword.value())
+                    if(!password)
+                    {
+                        return send(InternalServerError(request, "Password stored on the server is not of the type 'int'."));
+                    }
+
+                    if(password.value() != oldPassword.value())
                     {
                         return send(BadRequest(request, "{ \"response\":\"Invalid old password.\" }"));
                     }
+
+                    shm_warn("Door password has been changed.");
 
                     YAML::Emitter emitter;
                     emitter << YAML::BeginMap;
@@ -314,7 +394,7 @@ namespace shm::server
                         emitter << YAML::Value;
                         emitter << YAML::BeginMap;
                             emitter << YAML::Key << "Password";
-                            emitter << YAML::Value << std::string(newPassword.value());
+                            emitter << YAML::Value << newPassword.value();
                             emitter << YAML::EndMap;
                         emitter << YAML::EndMap;
 

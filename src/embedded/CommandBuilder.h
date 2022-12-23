@@ -26,7 +26,10 @@ namespace shm::embedded
 	{
 		Red=0x0,
 		Green=0x1,
-		Blue=0x2
+		Blue=0x2,
+		Orange=0x3,
+		Yellow=0x4,
+		Magenta=0x5
 	};
 
 	class CommandBuilder

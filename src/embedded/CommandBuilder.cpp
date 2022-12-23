@@ -36,7 +36,7 @@ namespace shm::embedded
 		return
 			static_cast<uint64_t>(COMMAND::Brightness) |
 			static_cast<uint64_t>(room)          << 8 |
-			static_cast<uint64_t>(brightness) << 16;
+			static_cast<uint64_t>(brightness)    << 16;
 	}
 
 	uint64_t CommandBuilder::BuildSelectColor(ROOM room, COLOR color)
