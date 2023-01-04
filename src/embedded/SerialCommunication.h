@@ -22,11 +22,9 @@ namespace shm::embedded
 		SerialCommunication& operator=(SerialCommunication const&) = delete;
 		SerialCommunication(std::string_view portName, BaudRate baudRate);
 		~SerialCommunication();
-
 		bool WriteString(std::string const& message) const;
 		bool Write(void const* data, std::size_t size) const;
 		bool ReadBlocking(std::vector<char>& receivedData) const;
-
 	private:
 		HANDLE m_HComm{INVALID_HANDLE_VALUE};
 		DCB m_DCBSerialParams{};

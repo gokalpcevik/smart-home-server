@@ -24,12 +24,10 @@ namespace shm::embedded
 
 	enum class COLOR
 	{
-		Red=0x0,
-		Green=0x1,
-		Blue=0x2,
-		Orange=0x3,
-		Yellow=0x4,
-		Magenta=0x5
+		Red = 0x0,
+		Green = 0x1,
+		Blue = 0x2,
+		Cyan = 0x3
 	};
 
 	class CommandBuilder
@@ -42,7 +40,7 @@ namespace shm::embedded
 		static uint64_t BuildWindow(bool on);
 		static uint64_t BuildPower(ROOM room, bool on);
 		static uint64_t BuildBrightness(ROOM room, uint32_t brightness);
-		static uint64_t BuildSelectColor(ROOM room, COLOR color);
+		static uint64_t BuildSelectColor(COLOR color);
 		static uint64_t BuildSmartLight(bool on);
 		static uint64_t BuildSunlight(bool on);
 	};

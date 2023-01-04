@@ -61,6 +61,10 @@ namespace shm::server
         return std::move(res);
     }
 
+    // This function produces an HTTP response for the given
+	// request. The type of the response object depends on the
+	// contents of the request, so the interface requires the
+	// caller to pass a generic lambda for receiving the response.
 	template<class Body, class Allocator, class Send>
 	void HandleRequest(http::request<Body, http::basic_fields<Allocator>>&& request,Send&& send)
 	{   
@@ -91,6 +95,8 @@ namespace shm::server
 	        }
         case http::verb::post:
 	        {
+
+				shm_trace(request.body());
 				if(request.target() == "/room")
 				{
                     /*
@@ -206,7 +212,7 @@ namespace shm::server
                     }
                     else if(command.value() == "brightness")
                     {
-	                    if (targetValue.get_int64().error() != simdjson::SUCCESS)
+	                    if (targetValue.get_uint64().error() != simdjson::SUCCESS)
 	                        return send(
 	                            BadRequest(request,
 	                                fmt::format("'targetValue' expect a value of type 'int/uint' but received the value '{0}'", targetValue.value())));
@@ -214,7 +220,7 @@ namespace shm::server
 						
 						shm_trace("Brightness value: {}",targetValue.get_int64().value());
 
-                        auto brightness = targetValue.get_int64().value();
+                        auto brightness = targetValue.get_uint64().value();
                         uint64_t boardCmd = cmdBuilder.BuildBrightness(roomEnum,brightness);
                         bool success = comm.Write(&boardCmd, 8);
 
@@ -222,14 +228,27 @@ namespace shm::server
 
 	                    return send(Ok(request,responseStr));
                     }
-                    else if(command.value() == "selectColor")
+                    else if(command.value() == "changeColor")
                     {
                         if (targetValue.get_string().error() != simdjson::SUCCESS)
                             return send(
                                 BadRequest(request,
                                     fmt::format("'targetValue' expect a value of type 'string' but received the value '{0}'", targetValue.value())));
 
+                        embedded::COLOR color{embedded::COLOR::Green};
 
+                        if (targetValue.get_string().value() == "blue") color = embedded::COLOR::Blue;
+                        if (targetValue.get_string().value() == "red")  color = embedded::COLOR::Red;
+                        if (targetValue.get_string().value() == "green") color = embedded::COLOR::Green;
+                        if (targetValue.get_string().value() == "turquoise") color = embedded::COLOR::Cyan;
+
+
+                        uint64_t boardCmd = cmdBuilder.BuildSelectColor(color);
+                        bool success = comm.Write(&boardCmd, 8);
+
+                        auto responseStr = fmt::format("{{ \"response\":{0} }}", success);
+
+                        return send(Ok(request, responseStr));
                     }
                     // If the func is invalid
                     else

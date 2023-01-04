@@ -49,21 +49,19 @@ namespace shm::server
 	void Session::OnRead(beast::error_code ec, std::size_t bytesTransferred)
 	{
 		boost::ignore_unused(bytesTransferred);
-
 		// This means the connection was closed by the other side.
 		if (ec == http::error::end_of_stream)
 		{
 			shm_trace("Connection was closed by the other side.");
 			return Close();
 		}
-
+		// General error handler
 		if(ec)
 		{
 			SHM_SV_ERR(ec);
 			return;
 		}
-
-
+		// Means no error has occurred
 		server::HandleRequest(std::move(m_Request), m_Lambda);
 	}
 

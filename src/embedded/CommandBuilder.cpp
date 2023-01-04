@@ -27,24 +27,21 @@ namespace shm::embedded
 
 	uint64_t CommandBuilder::BuildBrightness(ROOM room, uint32_t brightness)
 	{
-
 		// 8 + 8 + 32 = 48 bytes total
 		// data[0:7] is the function id
 		// data[7:15] is the room id
-		// data[47:25] is the brightness value
-
+		// data[47:16] is the brightness value
 		return
 			static_cast<uint64_t>(COMMAND::Brightness) |
 			static_cast<uint64_t>(room)          << 8 |
 			static_cast<uint64_t>(brightness)    << 16;
 	}
 
-	uint64_t CommandBuilder::BuildSelectColor(ROOM room, COLOR color)
+	uint64_t CommandBuilder::BuildSelectColor(COLOR color)
 	{
 		return
 			static_cast<uint64_t>(COMMAND::ColorSelection) |
-			static_cast<uint64_t>(room)  << 8|
-			static_cast<uint64_t>(color) << 16;
+			static_cast<uint64_t>(color) << 8;
 	}
 
 	uint64_t CommandBuilder::BuildSmartLight(bool on)
